@@ -1,48 +1,16 @@
 // Package elo implements the elo rating update rule.
 package elo
 
-import "math"
+import (
+	"fmt"
+	"math"
 
-// Rating is the rating of a player or team.
-type Rating float64
-
-// Outcome is the result of a match.
-type Outcome float64
-
-// Possible outcomes.
-const (
-	Win            Outcome = 1.0
-	Loss           Outcome = 0.0
-	Draw           Outcome = 0.5
-	UnknownOutcome Outcome = -1
+	"github.com/jaguilar/rating"
 )
 
-// Opposite returns the opposite outcome from the receiver.
-func (o Outcome) Opposite() Outcome {
-	switch o {
-	case Win, Loss:
-		return Outcome(1.0 - float64(o))
-	default:
-		return o
-	}
-}
-
-// ParseOutcome returns the outcome represented by s, or else UnknownOutcome.
-func ParseOutcome(s string) Outcome {
-	switch s {
-	case "win":
-		return Win
-	case "loss":
-		return Loss
-	case "draw":
-		return Draw
-	default:
-		return UnknownOutcome
-	}
-}
-
-// Config contains the parameters of the update.
-type Config struct {
+// System represents the elo rating system, including constants used for performing
+// updates. It implements rating.System.
+type System struct {
 	// K is the K factor to be used for the update.
 	K float64
 
@@ -50,19 +18,42 @@ type Config struct {
 	RatingFloor float64
 }
 
-// Update returns an updated rating for a player with rating r playing against
-// a player with a rating ro.
-func Update(r, ro Rating, o Outcome, c Config) Rating {
+func (s System) String() string {
+	return fmt.Sprintf("%#v", s)
+}
+
+// WinChance is part of the rating.System interface. In elo, the win chance
+// includes the half the chance of drawing, which is not specified.
+func (s System) WinChance(r, ro rating.Rating) float64 {
+	return expectedScore(r[0], ro[0])
+}
+
+// InitialRating is part of the rating.System interface.
+func (s System) InitialRating() rating.Rating {
+	return rating.Rating{800}
+}
+
+// Update is part of the rating.System interface.
+func (s System) Update(r, ro rating.Rating, o rating.Outcome) rating.Rating {
+	return rating.Rating{s.update(r[0], ro[0], score(o))}
+}
+
+func (s System) update(r, ro, score float64) float64 {
 	e := expectedScore(r, ro)
-	rn := float64(r) + c.K*(float64(o)-e)
-	if rn < c.RatingFloor {
-		rn = c.RatingFloor
+	rn := r + s.K*(score-e)
+	if rn < s.RatingFloor {
+		rn = s.RatingFloor
 	}
-	return Rating(rn)
+	return rn
+}
+
+func score(o rating.Outcome) float64 {
+	wld := o.WLD()
+	return wld.Value
 }
 
 // expectedScore returns the expected score a player with rating r would
 // receive when playing against a player with a rating ro.
-func expectedScore(r, ro Rating) float64 {
+func expectedScore(r, ro float64) float64 {
 	return 1. / (1. + math.Pow(10.0, (float64(ro)-float64(r))/400.0))
 }

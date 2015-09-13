@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/jaguilar/rating"
 	"github.com/jaguilar/rating/elo"
 
 	"golang.org/x/net/context"
@@ -17,7 +18,7 @@ const (
 )
 
 var (
-	eloConfig = elo.Config{K: 30}
+	eloSys = &elo.System{K: 30}
 )
 
 type codeErr struct {
@@ -55,7 +56,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 
 // Player is the datastore representation of a player.
 type Player struct {
-	Rating elo.Rating
+	Rating rating.Rating
 	key    *datastore.Key
 }
 
@@ -75,7 +76,9 @@ func newPlayer(w http.ResponseWriter, r *http.Request) {
 			return codeErr{fmt.Errorf("player(%s) already exists", id), http.StatusConflict}
 		}
 
-		p = &Player{Rating: initialRating, key: k}
+		// TODO(jaguilar): Add another system. Add a system Registry. Leagues
+		// can have ratings.
+		p = &Player{Rating: eloSys.InitialRating(), key: k}
 		if _, err := datastore.Put(ctx, p.key, p); err != nil {
 			return err
 		}
@@ -95,13 +98,13 @@ func newPlayer(w http.ResponseWriter, r *http.Request) {
 func result(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
-	p1id, p2id, outcome := r.FormValue("p1"), r.FormValue("p2"), elo.ParseOutcome(r.FormValue("outcome"))
+	p1id, p2id, outcome := r.FormValue("p1"), r.FormValue("p2"), rating.ParseWLD(r.FormValue("outcome"))
 	if p1id == "" || p2id == "" {
 		http.Error(w, "must specify ids for both players", http.StatusBadRequest)
 		return
 	}
 
-	if outcome == elo.UnknownOutcome {
+	if outcome == rating.UnknownOutcome {
 		http.Error(w, "unrecognized outcome: "+r.FormValue("outcome"), http.StatusBadRequest)
 		return
 	}
@@ -117,8 +120,8 @@ func result(w http.ResponseWriter, r *http.Request) {
 			return fmt.Errorf("get %v: %v", p2, err)
 		}
 
-		p1.Rating = elo.Update(p1.Rating, p2.Rating, outcome, eloConfig)
-		p2.Rating = elo.Update(p2.Rating, p1.Rating, outcome.Opposite(), eloConfig)
+		p1.Rating = eloSys.Update(p1.Rating, p2.Rating, outcome)
+		p2.Rating = eloSys.Update(p2.Rating, p1.Rating, outcome.Opposite())
 
 		for _, p := range []*Player{&p1, &p2} {
 			if _, err := datastore.Put(ctx, p.key, p); err != nil {

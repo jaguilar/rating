@@ -3,39 +3,36 @@ package elo
 import (
 	"testing"
 
+	"github.com/jaguilar/rating"
 	"github.com/jaguilar/testify/assert"
 )
 
+var _ rating.System = System{K: 32}
+
 func TestElo(t *testing.T) {
-	config := Config{K: 32.0}
+	sys := System{K: 32}
 
 	type opponentOutcome struct {
-		ro Rating
-		o  Outcome
+		ro float64
+		o  rating.Outcome
 	}
 
 	for _, tc := range []struct {
-		r, rf Rating // Initial, final rating.
+		r, rf float64 // Initial, final rating.
 		games []opponentOutcome
 	}{
 		{r: 1613, rf: 1603, games: []opponentOutcome{
-			{ro: 1609, o: Loss},
-			{ro: 1477, o: Draw},
-			{ro: 1388, o: Win},
-			{ro: 1586, o: Win},
-			{ro: 1720, o: Loss},
+			{ro: 1609, o: rating.Loss},
+			{ro: 1477, o: rating.Draw},
+			{ro: 1388, o: rating.Win},
+			{ro: 1586, o: rating.Win},
+			{ro: 1720, o: rating.Loss},
 		}},
 	} {
 		r := tc.r
 		for _, g := range tc.games {
-			r = Update(r, g.ro, g.o, config)
+			r = sys.Update(rating.Rating{r}, rating.Rating{g.ro}, g.o)[0]
 		}
 		assert.InDelta(t, float64(tc.rf), float64(r), .5)
 	}
-}
-
-func TestOpposite(t *testing.T) {
-	assert.Equal(t, Loss, Win.Opposite())
-	assert.Equal(t, Win, Loss.Opposite())
-	assert.Equal(t, Draw, Draw.Opposite())
 }
