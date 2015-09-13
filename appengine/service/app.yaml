@@ -1,0 +1,10 @@
+runtime: go
+api_version: go1
+application: rating
+module: service
+version: v0-0-1
+
+handlers:
+    - url: /.*
+      script: _go_app
+      login: required
