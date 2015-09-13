@@ -33,3 +33,9 @@ func TestElo(t *testing.T) {
 		assert.InDelta(t, float64(tc.rf), float64(r), .5)
 	}
 }
+
+func TestOpposite(t *testing.T) {
+	assert.Equal(t, Loss, Win.Opposite())
+	assert.Equal(t, Win, Loss.Opposite())
+	assert.Equal(t, Draw, Draw.Opposite())
+}

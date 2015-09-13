@@ -11,10 +11,35 @@ type Outcome float64
 
 // Possible outcomes.
 const (
-	Win  Outcome = 1.0
-	Loss Outcome = 0.0
-	Draw Outcome = 0.5
+	Win            Outcome = 1.0
+	Loss           Outcome = 0.0
+	Draw           Outcome = 0.5
+	UnknownOutcome Outcome = -1
 )
+
+// Opposite returns the opposite outcome from the receiver.
+func (o Outcome) Opposite() Outcome {
+	switch o {
+	case Win, Loss:
+		return Outcome(1.0 - float64(o))
+	default:
+		return o
+	}
+}
+
+// ParseOutcome returns the outcome represented by s, or else UnknownOutcome.
+func ParseOutcome(s string) Outcome {
+	switch s {
+	case "win":
+		return Win
+	case "loss":
+		return Loss
+	case "draw":
+		return Draw
+	default:
+		return UnknownOutcome
+	}
+}
 
 // Config contains the parameters of the update.
 type Config struct {
